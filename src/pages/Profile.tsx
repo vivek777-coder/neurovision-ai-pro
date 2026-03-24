@@ -290,28 +290,6 @@ export default function Profile() {
           </motion.div>
         ))}
       </div>
-      </motion.div>
-
-      {/* Info Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {infoCards.map((item, i) => (
-          <motion.div
-            key={item.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="glass rounded-xl p-5 flex items-center gap-4 hover:glow-primary transition-all duration-300"
-          >
-            <div className="p-2 rounded-lg bg-muted">
-              <item.icon className="h-4 w-4 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground">{item.label}</p>
-              <p className="text-sm font-medium truncate">{item.value}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
 
       {/* Danger Zone */}
       <motion.div
