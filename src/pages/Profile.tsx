@@ -38,49 +38,61 @@ function saveProfile(data: ProfileData) {
 export default function Profile() {
   const { toast } = useToast();
   const [profile, setProfile] = useState<ProfileData>(loadProfile);
-  const [editingName, setEditingName] = useState(false);
-  const [draftName, setDraftName] = useState(profile.name);
+  const [editingField, setEditingField] = useState<EditableField | null>(null);
+  const [draftValue, setDraftValue] = useState("");
   const [saving, setSaving] = useState(false);
-  const [nameError, setNameError] = useState("");
-  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [fieldError, setFieldError] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (editingName) nameInputRef.current?.focus();
-  }, [editingName]);
+    if (editingField) inputRef.current?.focus();
+  }, [editingField]);
 
-  const startEditing = () => {
-    setDraftName(profile.name);
-    setNameError("");
-    setEditingName(true);
+  const fieldLabels: Record<EditableField, string> = {
+    name: "Name",
+    email: "Email",
+    role: "Role",
+  };
+
+  const startEditing = (field: EditableField) => {
+    setDraftValue(profile[field]);
+    setFieldError("");
+    setEditingField(field);
   };
 
   const cancelEditing = () => {
-    setEditingName(false);
-    setNameError("");
+    setEditingField(null);
+    setFieldError("");
   };
 
-  const handleSaveName = async () => {
-    const trimmed = draftName.trim();
-    if (!trimmed) {
-      setNameError("Name cannot be empty");
-      return;
+  const validateField = (field: EditableField, value: string): string | null => {
+    if (!value) return `${fieldLabels[field]} cannot be empty`;
+    if (value.length < 2) return `${fieldLabels[field]} must be at least 2 characters`;
+    if (field === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      return "Please enter a valid email address";
     }
-    if (trimmed.length < 2) {
-      setNameError("Name must be at least 2 characters");
+    return null;
+  };
+
+  const handleSaveField = async () => {
+    if (!editingField) return;
+    const trimmed = draftValue.trim();
+    const error = validateField(editingField, trimmed);
+    if (error) {
+      setFieldError(error);
       return;
     }
 
     setSaving(true);
-    // Simulate network delay
     await new Promise((r) => setTimeout(r, 800));
 
-    const updated = { ...profile, name: trimmed };
+    const updated = { ...profile, [editingField]: trimmed };
     setProfile(updated);
     saveProfile(updated);
-    setEditingName(false);
+    setEditingField(null);
     setSaving(false);
-    toast({ title: "Profile updated", description: "Your name has been updated successfully." });
+    toast({ title: "Profile updated", description: `Your ${fieldLabels[editingField].toLowerCase()} has been updated successfully.` });
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
