@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
+type EditableField = "name" | "email" | "role";
+
 interface ProfileData {
   name: string;
   email: string;
