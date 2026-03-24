@@ -119,9 +119,75 @@ export default function Profile() {
     reader.readAsDataURL(file);
   };
 
-  const infoCards = [
-    { icon: Mail, label: "Email", value: profile.email },
-    { icon: Shield, label: "Role", value: "Administrator" },
+  const editableField = (field: EditableField, icon: React.ElementType, label: string) => {
+    const Icon = icon;
+    const isEditing = editingField === field;
+
+    return (
+      <motion.div
+        key={label}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-xl p-5 flex items-center gap-4 hover:glow-primary transition-all duration-300"
+      >
+        <div className="p-2 rounded-lg bg-muted">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <AnimatePresence mode="wait">
+            {isEditing ? (
+              <motion.div
+                key="edit"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-1"
+              >
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    ref={inputRef}
+                    value={draftValue}
+                    onChange={(e) => {
+                      setDraftValue(e.target.value);
+                      if (fieldError) setFieldError("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveField();
+                      if (e.key === "Escape") cancelEditing();
+                    }}
+                    className="text-sm font-medium bg-transparent border-b-2 border-primary/60 focus:border-primary outline-none px-1 py-0.5 w-full max-w-xs"
+                  />
+                  <Button size="icon" variant="ghost" onClick={handleSaveField} disabled={saving} className="rounded-full h-7 w-7 text-success hover:bg-success/10">
+                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={cancelEditing} disabled={saving} className="rounded-full h-7 w-7 text-destructive hover:bg-destructive/10">
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <AnimatePresence>
+                  {fieldError && (
+                    <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive">
+                      {fieldError}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ) : (
+              <motion.div key="display" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-1.5">
+                <p className="text-sm font-medium truncate">{profile[field]}</p>
+                <Button size="icon" variant="ghost" onClick={() => startEditing(field)} className="rounded-full h-6 w-6 text-muted-foreground hover:text-primary">
+                  <Pencil className="h-3 w-3" />
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    );
+  };
+
+  const staticCards = [
     { icon: Bell, label: "Notifications", value: "Enabled" },
     { icon: Palette, label: "Theme", value: "System Default" },
     { icon: Brain, label: "API Usage", value: "12,847 / 50,000" },
@@ -147,11 +213,7 @@ export default function Profile() {
           <div className="relative group shrink-0">
             <div className="w-24 h-24 rounded-2xl overflow-hidden gradient-primary flex items-center justify-center">
               {profile.avatar ? (
-                <img
-                  src={profile.avatar}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
+                <img src={profile.avatar} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <User className="h-12 w-12 text-primary-foreground" />
               )}
@@ -162,91 +224,39 @@ export default function Profile() {
             >
               <Camera className="h-6 w-6 text-primary-foreground drop-shadow" />
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleAvatarChange}
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </div>
 
           {/* Name + Role */}
           <div className="flex-1 text-center sm:text-left space-y-2 min-w-0">
             <AnimatePresence mode="wait">
-              {editingName ? (
-                <motion.div
-                  key="editing"
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 4 }}
-                  className="space-y-2"
-                >
+              {editingField === "name" ? (
+                <motion.div key="editing" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} className="space-y-2">
                   <div className="flex items-center gap-2">
                     <input
-                      ref={nameInputRef}
-                      value={draftName}
-                      onChange={(e) => {
-                        setDraftName(e.target.value);
-                        if (nameError) setNameError("");
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveName();
-                        if (e.key === "Escape") cancelEditing();
-                      }}
+                      ref={inputRef}
+                      value={draftValue}
+                      onChange={(e) => { setDraftValue(e.target.value); if (fieldError) setFieldError(""); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleSaveField(); if (e.key === "Escape") cancelEditing(); }}
                       className="text-xl font-bold bg-transparent border-b-2 border-primary/60 focus:border-primary outline-none px-1 py-0.5 w-full max-w-xs"
                     />
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={handleSaveName}
-                      disabled={saving}
-                      className="rounded-full h-8 w-8 text-success hover:bg-success/10"
-                    >
-                      {saving ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Check className="h-4 w-4" />
-                      )}
+                    <Button size="icon" variant="ghost" onClick={handleSaveField} disabled={saving} className="rounded-full h-8 w-8 text-success hover:bg-success/10">
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                     </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={cancelEditing}
-                      disabled={saving}
-                      className="rounded-full h-8 w-8 text-destructive hover:bg-destructive/10"
-                    >
+                    <Button size="icon" variant="ghost" onClick={cancelEditing} disabled={saving} className="rounded-full h-8 w-8 text-destructive hover:bg-destructive/10">
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                   <AnimatePresence>
-                    {nameError && (
-                      <motion.p
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="text-xs text-destructive"
-                      >
-                        {nameError}
-                      </motion.p>
+                    {fieldError && (
+                      <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="text-xs text-destructive">{fieldError}</motion.p>
                     )}
                   </AnimatePresence>
                 </motion.div>
               ) : (
-                <motion.div
-                  key="display"
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 4 }}
-                  className="flex items-center gap-2 justify-center sm:justify-start"
-                >
+                <motion.div key="display" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} className="flex items-center gap-2 justify-center sm:justify-start">
                   <h2 className="text-xl font-bold">{profile.name}</h2>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={startEditing}
-                    className="rounded-full h-7 w-7 text-muted-foreground hover:text-primary"
-                  >
+                  <Button size="icon" variant="ghost" onClick={() => startEditing("name")} className="rounded-full h-7 w-7 text-muted-foreground hover:text-primary">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                 </motion.div>
@@ -256,6 +266,30 @@ export default function Profile() {
             <Badge className="gradient-primary border-0">Pro Plan</Badge>
           </div>
         </div>
+      </motion.div>
+
+      {/* Editable Info Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {editableField("email", Mail, "Email")}
+        {editableField("role", Shield, "Role")}
+        {staticCards.map((item, i) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className="glass rounded-xl p-5 flex items-center gap-4 hover:glow-primary transition-all duration-300"
+          >
+            <div className="p-2 rounded-lg bg-muted">
+              <item.icon className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">{item.label}</p>
+              <p className="text-sm font-medium truncate">{item.value}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
       </motion.div>
 
       {/* Info Grid */}
