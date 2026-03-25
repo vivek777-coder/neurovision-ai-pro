@@ -11,19 +11,12 @@ interface DetectedObject {
   color: "primary" | "accent" | "success" | "warning";
 }
 
-const mockResults: DetectedObject[] = [
-  { label: "Person", confidence: 97, color: "primary" },
-  { label: "Laptop", confidence: 94, color: "accent" },
-  { label: "Desk", confidence: 89, color: "success" },
-  { label: "Coffee Cup", confidence: 82, color: "warning" },
-  { label: "Monitor", confidence: 91, color: "primary" },
-  { label: "Keyboard", confidence: 88, color: "accent" },
-];
-
 export default function ImageAnalyzer() {
   const [image, setImage] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState<DetectedObject[] | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -40,103 +33,150 @@ export default function ImageAnalyzer() {
     const reader = new FileReader();
     reader.onload = (e) => {
       setImage(e.target?.result as string);
-      setResults(null);
-      analyzeImage();
+      analyzeImage(file);
     };
     reader.readAsDataURL(file);
   };
 
-  const analyzeImage = () => {
+  // 🔥 REAL AI API CALL
+  const analyzeImage = async (file: File) => {
     setAnalyzing(true);
-    setTimeout(() => {
-      setResults(mockResults);
-      setAnalyzing(false);
-    }, 2500);
+    setResults(null);
+    setSummary(null);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("http://localhost:8000/image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      const formatted = data.objects.map((item: any, index: number) => ({
+        label: item.label,
+        confidence: Math.round(item.score * 100),
+        color: ["primary", "accent", "success", "warning"][index % 4],
+      }));
+
+      setResults(formatted);
+      setSummary(data.summary);
+
+    } catch (err) {
+      setError("❌ Failed to analyze image. Try again.");
+    }
+
+    setAnalyzing(false);
   };
 
   const reset = () => {
     setImage(null);
     setResults(null);
+    setSummary(null);
+    setError(null);
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8 px-2">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <h1 className="text-2xl font-bold">Image Analyzer</h1>
-        <p className="text-muted-foreground mt-1">Upload an image to detect objects using AI</p>
+        <p className="text-muted-foreground mt-1">
+          Upload an image to detect objects and get AI-powered insights
+        </p>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+
+        {/* LEFT SIDE */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           {!image ? (
             <div
               onDrop={handleDrop}
               onDragOver={(e) => e.preventDefault()}
-              className="glass rounded-xl p-12 flex flex-col items-center justify-center gap-4 border-2 border-dashed border-border hover:border-primary/50 transition-colors cursor-pointer min-h-[300px]"
+              className="glass rounded-xl p-10 flex flex-col items-center justify-center gap-4 border-2 border-dashed hover:border-primary/50 transition cursor-pointer min-h-[280px]"
               onClick={() => document.getElementById("file-input")?.click()}
             >
-              <div className="p-4 rounded-full bg-muted">
-                <Upload className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <div className="text-center">
-                <p className="font-medium">Drop an image here or click to upload</p>
-                <p className="text-sm text-muted-foreground mt-1">PNG, JPG, WebP up to 10MB</p>
-              </div>
+              <Upload className="h-8 w-8 text-muted-foreground" />
+              <p className="font-medium">Upload Image</p>
+              <p className="text-sm text-muted-foreground">Drag & drop or click</p>
               <input id="file-input" type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
             </div>
           ) : (
             <div className="relative glass rounded-xl overflow-hidden">
-              <img src={image} alt="Uploaded" className="w-full h-auto max-h-[400px] object-contain" />
-              <Button variant="ghost" size="icon" onClick={reset} className="absolute top-2 right-2 rounded-full bg-card/80 backdrop-blur">
+              <img
+                src={image}
+                alt="Uploaded"
+                className="w-full h-[250px] md:h-[350px] object-cover"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={reset}
+                className="absolute top-2 right-2 bg-white/70"
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
           )}
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="space-y-4">
-          {analyzing && <AIThinking label="Analyzing image with computer vision..." />}
+        {/* RIGHT SIDE */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+
+          {analyzing && (
+            <AIThinking label="Analyzing image with advanced AI vision..." />
+          )}
+
+          {error && (
+            <div className="p-4 bg-red-100 text-red-600 rounded-xl text-sm">
+              {error}
+            </div>
+          )}
 
           <AnimatePresence>
             {results && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl p-6 space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl gradient-primary">
-                    <ScanEye className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Detection Results</h3>
-                    <p className="text-sm text-muted-foreground">{results.length} objects detected</p>
-                  </div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+
+                {/* TOP RESULT */}
+                <div className="glass p-4 rounded-xl">
+                  <p className="text-sm text-muted-foreground">Top Detection</p>
+                  <h3 className="text-lg font-bold">{results[0].label}</h3>
+                  <p className="text-xs">{results[0].confidence}% confidence</p>
                 </div>
 
-                <div className="space-y-4">
+                {/* FULL RESULTS */}
+                <div className="glass rounded-xl p-4 space-y-3">
                   {results.map((obj, i) => (
-                    <motion.div key={obj.label} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}>
+                    <motion.div key={obj.label} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.1 }}>
                       <ConfidenceBar label={obj.label} value={obj.confidence} color={obj.color} />
                     </motion.div>
                   ))}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {results.slice(0, 4).map((obj) => (
-                    <div key={obj.label} className="p-3 rounded-lg bg-muted/50 text-center">
-                      <ImageIcon className="h-5 w-5 mx-auto mb-1 text-primary" />
-                      <p className="text-xs font-medium">{obj.label}</p>
-                      <p className="text-xs text-muted-foreground">{obj.confidence}%</p>
-                    </div>
-                  ))}
-                </div>
+                {/* AI SUMMARY */}
+                {summary && (
+                  <div className="glass p-4 rounded-xl">
+                    <h3 className="font-semibold mb-2">AI Insight</h3>
+                    <p className="text-sm text-muted-foreground">{summary}</p>
+                  </div>
+                )}
+
               </motion.div>
             )}
           </AnimatePresence>
 
           {!image && !analyzing && (
-            <div className="glass rounded-xl p-8 flex flex-col items-center justify-center text-center min-h-[200px]">
-              <ScanEye className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-muted-foreground text-sm">Upload an image to see AI analysis results</p>
+            <div className="glass rounded-xl p-6 text-center">
+              <ScanEye className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Upload an image to get real-time AI detection & insights
+              </p>
             </div>
           )}
+
         </motion.div>
       </div>
     </div>
